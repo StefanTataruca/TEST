@@ -1,0 +1,100 @@
+import java.util.HashMap;
+import java.util.Map;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+import java.io.IOException;
+import java.util.List;
+
+import java.io.IOException;
+import java.util.List;
+public class Message {
+    private String date;
+    private String message;
+    private String house;
+
+    // Constructori, getteri și setteri
+    public Message() {}
+
+    public Message(String date, String message, String house) {
+        this.date = date;
+        this.message = message;
+        this.house = house;
+    }
+
+    // Getteri și setteri
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public String getHouse() {
+        return house;
+    }
+
+    public void setHouse(String house) {
+        this.house = house;
+    }
+}
+public class MessageDecoder {
+    private static final Map<Character, Character> patternAtreides = new HashMap<>();
+    private static final Map<Character, Character> patternHarkonnen = new HashMap<>();
+
+    static {
+        patternAtreides.put('J', 'M');
+        patternAtreides.put('b', 'e');
+        patternAtreides.put('p', 's');
+        patternAtreides.put('f', 'i');
+
+        patternHarkonnen.put('O', 'M');
+        patternHarkonnen.put('g', 'e');
+        patternHarkonnen.put('u', 's');
+        patternHarkonnen.put('k', 'i');
+    }
+
+    public static String decode(Message message) {
+        Map<Character, Character> pattern = message.getHouse().equals("atreides") ? patternAtreides : patternHarkonnen;
+        StringBuilder decoded = new StringBuilder();
+        for (char c : message.getMessage().toCharArray()) {
+            decoded.append(pattern.getOrDefault(c, c));
+        }
+        return decoded.toString();
+    }
+}
+
+public class MessageReader {
+    public static List<Message> readMessages() throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readValue(new ClassPathResource("messages.json").getInputStream(), new TypeReference<List<Message>>(){});
+    }
+}
+@SpringBootApplication
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+
+        try {
+            List<Message> messages = MessageReader.readMessages();
+            messages.forEach(message -> {
+                String decodedMessage = MessageDecoder.decode(message);
+                System.out.println("Decoded Message: " + decodedMessage);
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
