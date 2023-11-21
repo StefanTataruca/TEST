@@ -1,0 +1,198 @@
+
+package com.example.test;
+
+// Correct imports for Jackson annotations
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public class Message {
+    private String date;
+    private String message;
+    private String house;
+
+    @JsonCreator // Jackson annotation to indicate the constructor is used for deserialization
+    public Message(@JsonProperty("date") String date, 
+                   @JsonProperty("message") String message, 
+                   @JsonProperty("house") String house) {
+        this.date = date;
+        this.message = message;
+        this.house = house;
+    }
+
+    public String getDate() {
+        return date;
+    }
+
+    public void setDate(String date) {
+        this.date = date;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public String getHouse() {
+        return house;
+    }
+
+    public void setHouse(String house) {
+        this.house = house;
+    }
+}
+// src/main/java/com/example/test/AtreidesDecoder.java
+package com.example.test;
+
+public class AtreidesDecoder implements MessageDecoder {
+    private final Map<Character, Character> config;
+
+    public AtreidesDecoder() {
+        config = DecodingConfiguration.getInstance().getAtreidesConfig();
+    }
+
+    @Override
+    public String decode(String message) {
+        return message.chars()
+            .mapToObj(c -> config.getOrDefault((char) c, (char) c))
+            .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append)
+            .toString();
+    }
+}
+
+// src/main/java/com/example/test/HarkonnenDecoder.java
+package com.example.test;
+
+public class HarkonnenDecoder implements MessageDecoder {
+    private final Map<Character, Character> config;
+
+    public HarkonnenDecoder() {
+        config = DecodingConfiguration.getInstance().getHarkonnenConfig();
+    }
+
+    @Override
+    public String decode(String message) {
+        return message.chars()
+            .mapToObj(c -> config.getOrDefault((char) c, (char) c))
+            .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append)
+            .toString();
+    }
+}
+// src/main/java/com/example/test/DecodingConfiguration.java
+package com.example.test;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class DecodingConfiguration {
+    private static DecodingConfiguration instance;
+    private final Map<Character, Character> atreidesConfig;
+    private final Map<Character, Character> harkonnenConfig;
+
+    private DecodingConfiguration() {
+        // Configurația pentru Atreides
+        atreidesConfig = new HashMap<>();
+        atreidesConfig.put('J', 'M');
+        atreidesConfig.put('b', 'e');
+        atreidesConfig.put('p', 's');
+        atreidesConfig.put('f', 'i');
+
+        // Configurația pentru Harkonnen
+        harkonnenConfig = new HashMap<>();
+        harkonnenConfig.put('O', 'M');
+        harkonnenConfig.put('g', 'e');
+        harkonnenConfig.put('u', 's');
+        harkonnenConfig.put('k', 'i');
+    }
+
+    public static synchronized DecodingConfiguration getInstance() {
+        if (instance == null) {
+            instance = new DecodingConfiguration();
+        }
+        return instance;
+    }
+
+    public Map<Character, Character> getAtreidesConfig() {
+        return atreidesConfig;
+    }
+
+    public Map<Character, Character> getHarkonnenConfig() {
+        return harkonnenConfig;
+    }
+}
+// src/main/java/com/example/test/TestApplication.java
+package com.example.test;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.boot.CommandLineRunner;
+
+@SpringBootApplication
+public class TestApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(TestApplication.class, args);
+    }
+
+    @Bean
+    CommandLineRunner run(MessageService messageService) {
+        return args -> {
+            try {
+                messageService.decodeMessages().forEach(System.out::println);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        };
+    }
+}
+// src/main/java/com/example/test/MessageService.java
+package com.example.test;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Service
+public class MessageService {
+    public List<Message> decodeMessages() throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        List<Message> messages = objectMapper.readValue(new ClassPathResource("messages.json").getInputStream(), new TypeReference<>() {});
+
+        return messages.stream().map(this::decodeMessage).collect(Collectors.toList());
+    }
+
+    private Message decodeMessage(Message message) {
+        MessageDecoder decoder = DecoderFactory.getDecoder(message.getHouse());
+        String decodedMessage = decoder.decode(message.getMessage());
+        message.setMessage(decodedMessage);
+        return message;
+    }
+}
+// src/main/java/com/example/test/DecoderFactory.java
+package com.example.test;
+
+public class DecoderFactory {
+    public static MessageDecoder getDecoder(String house) {
+        if ("atreides".equalsIgnoreCase(house)) {
+            return new AtreidesDecoder();
+        } else if ("harkonnen".equalsIgnoreCase(house)) {
+            return new HarkonnenDecoder();
+        }
+        throw new IllegalArgumentException("Unknown house: " + house);
+    }
+}
+// src/main/java/com/example/test/MessageDecoder.java
+package com.example.test;
+
+public interface MessageDecoder {
+    String decode(String message);
+}
