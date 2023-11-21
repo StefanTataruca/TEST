@@ -1,0 +1,54 @@
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.net.URL;
+import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+public class MessageReader {
+    public static List<Message> readMessages() throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        URL url = MessageReader.class.getResource("/messages.json");
+        return objectMapper.readValue(url, new TypeReference<List<Message>>(){});
+    }
+}
+import com.fasterxml.jackson.core.type.TypeReference;
+        import com.fasterxml.jackson.databind.ObjectMapper;
+        import java.io.IOException;
+        import java.net.URL;
+        import java.util.List;
+
+public class MessageReader {
+    public static List<Message> readMessages() throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
+        URL url = MessageReader.class.getResource("/messages.json");
+        return objectMapper.readValue(url, new TypeReference<List<Message>>(){});
+    }
+}
+
+
+public class MessageDecoder {
+    private static final Map<Character, Character> patternAtreides = new HashMap<>();
+    private static final Map<Character, Character> patternHarkonnen = new HashMap<>();
+
+    static {
+        patternAtreides.put('J', 'M');
+        patternAtreides.put('b', 'e');
+        patternAtreides.put('p', 's');
+        patternAtreides.put('f', 'i');
+
+        patternHarkonnen.put('O', 'M');
+        patternHarkonnen.put('g', 'e');
+        patternHarkonnen.put('u', 's');
+        patternHarkonnen.put('k', 'i');
+    }
+
+    public static String decode(Message message) {
+        Map<Character, Character> pattern = message.getHouse().equals("atreides") ? patternAtreides : patternHarkonnen;
+        StringBuilder decoded = new StringBuilder();
+        for (char c : message.getMessage().toCharArray()) {
+            decoded.append(pattern.getOrDefault(c, c));
+        }
+        return decoded.toString();
+    }
+}
